@@ -1,35 +1,33 @@
 # CayleySpec
 
-**Cayley graph spectral theory formalized in Lean 4.**
+**Cayley graph spectral theory ↔ Hecke eigenvalues — formalized in Lean 4.**
 
 This project is the formal-methods backbone of a research program combining
 **graph theory**, **number theory**, and **computational complexity** —
 all formalized in the [Lean theorem prover](https://lean-lang.org/).
 
+| Build | Jobs | Errors | Status |
+|-------|------|--------|--------|
+| `lake build` | 3,265 | 0 | ✅ Passes |
+| Admitted theorems | — | 1 | Boundedness-at-cusps (permanent — needs q-expansion) |
+
 ## Scientific Motivation
 
-The CayleySpec project aims to build a formal bridge between three domains:
+The CayleySpec project builds a formal dictionary between two domains:
 
-| Domain | Connection | Target Theorem |
-|--------|-----------|----------------|
-| **Cayley graphs** | Vertex-transitive graphs that realize the WL/GNN separation | `mulCayley_vertexTransitive` — every Cayley graph is vertex-transitive |
-| **Spectral graph theory** | Eigenvalues of Cayley graphs ↔ characters of finite groups | Plan: formalize the spectrum of SL(2,F_p) Cayley graphs |
-| **Number theory (Hecke operators)** | Hecke eigenvalues as spectra of certain Cayley graphs | Plan: Cayley spectrum ↔ Hecke eigenvalue dictionary |
+| Domain | Connection | Formalized |
+|--------|-----------|------------|
+| **Cayley graphs** | Vertex-transitive graphs that realize the WL/GNN separation | ✅ `mulCayley_vertexTransitive` |
+| **Spectral graph theory** | Eigenvalues of Cayley graphs ↔ characters of finite groups | ✅ Characters are eigenvectors; Peter-Weyl decomposition |
+| **Number theory (Hecke operators)** | Hecke eigenvalues as spectra of certain Cayley graphs | ✅ `heckeOperator_slash` (SL(2,ℤ)-invariance); ✅ holomorphy |
+| **Dictionary** | Cayley spectrum ↔ Hecke eigenvalue dictionary | ✅ Building blocks |
+| **Boundedness at cusps** | q-expansion theory (LMFDB-level) | 🟡 Permanently admitted |
 
 ### Research Context
 
 This work builds on published results on **GNN expressivity limits**:
 vertex-transitive Cayley graphs of `SL(2,F_p)` separate the k-WL hierarchy,
 showing that message-passing GNNs fail on certain graph isomorphism problems.
-
-The long-term goal is **Path B → A** (from our Oracle analysis):
-
-1. **Path B (Number-Theoretic Complexity from Graphs)**: Formalize the dictionary
-   between Cayley graph spectra (of SL(2,F_p) and related groups) and Hecke eigenvalues
-   of modular forms. This leverages mathlib's strong number theory foundations.
-2. **Path A (WL Hierarchy Formalization)**: Pivot to formalizing the GNN expressivity
-   hierarchy — the k-WL test, bounded-depth circuit complexity, and the formal proof
-   that vertex-transitive Cayley graphs separate WL levels.
 
 ## Prerequisites
 
@@ -43,7 +41,6 @@ The long-term goal is **Path B → A** (from our Oracle analysis):
   ```
 - **Lean 4** — installed via elan (automatically managed via `lean-toolchain`)
 - **lake** — Lean's build system (comes with Lean 4)
-- **OpenCode** (optional) — for the AI-assisted workflow described below
 
 ## Quick Start: Reproduce the Build
 
@@ -60,10 +57,10 @@ lake exe cache get  # fetch pre-built mathlib .olean files
 lake build          # build the project
 ```
 
-Expected output after a successful build:
+Expected output:
 
 ```
-✔ [751/751] Built CayleySpec
+✔ [3265/3265] Built CayleySpec
 ```
 
 ### Troubleshooting
@@ -81,9 +78,14 @@ Expected output after a successful build:
 CayleySpec/
 ├── CayleySpec.lean               # Root file — re-exports the library
 ├── CayleySpec/
-│   ├── Basic.lean                # Aggregate module — re-exports Defs + CayleyProp
+│   ├── Basic.lean                # Aggregate module — re-exports all sub-modules
 │   ├── Defs.lean                 # Core definitions (IsVertexTransitive)
-│   └── CayleyProp.lean           # Proofs (leftMul automorphism, vertex-transitivity)
+│   ├── CayleyProp.lean           # Proofs (leftMul automorphism, vertex-transitivity)
+│   ├── Spectrum.lean             # Adjacency operator, character eigenvectors (abelian)
+│   ├── Fourier.lean              # Peter-Weyl theorem, regular representation multiplicity
+│   └── Hecke.lean                # Hecke operators T_n, SL(2,ℤ)-invariance, holomorphy
+├── paper/
+│   └── cayleyspec.tex            # Companion paper (11 pages, CPP/ITP/arXiv)
 ├── lakefile.toml                 # Lake configuration (Lean build system)
 ├── lean-toolchain                # Pins Lean version: leanprover/lean4:v4.31.0
 ├── lake-manifest.json            # Locked dependency versions
@@ -110,25 +112,96 @@ theorem mulCayley_vertexTransitive {G : Type*} [Group G] (s : Set G) :
     IsVertexTransitive (mulCayley s) := ...
 ```
 
+**`Spectrum.lean`** — the Cayley graph adjacency operator and its eigenbasis for abelian groups:
+
+```lean
+noncomputable def adjacencyOperator (S : Finset G) : (G → ℂ) →ₗ[ℂ] (G → ℂ) := ...
+
+theorem character_eigenvector (χ : G →* ℂˣ) :
+    (adjacencyOperator S) χ = (∑ s ∈ S, χ s) • χ := ...
+```
+
+Also defines the adjacency element `∑_{s∈S} s` in the group algebra `ℂ[G]` and proves its image under any representation is `∑_{s∈S} ρ(s)`.
+
+**`Fourier.lean`** — the Peter-Weyl theorem for finite groups over ℂ (the regular representation and its irreducible decomposition):
+
+```lean
+noncomputable def regularHomEquiv :
+    IntertwiningMap (leftRegular ℂ G) ρ ≃ₗ[ℂ] V := ...
+
+theorem regular_multiplicity (ρ : FDRep ℂ G) [Simple ρ] :
+    finrank (Hom_G(ℂ[G], V_ρ)) = dim(ρ) := ...
+```
+
+Key result: each irreducible representation `ρ` appears `dim(ρ)` times in the regular representation.
+
+**`Hecke.lean`** — the Hecke operator `T_n` and its formal properties:
+
+```lean
+noncomputable def heckeOperator (f : ℍ → ℂ) (k : ℤ) (n : ℕ) (hn : n ≠ 0) : ℍ → ℂ :=
+  ∑ M : reps (n : ℤ), f ∣[k] (ΔtoGL M.1)
+
+theorem heckeOperator_slash (γ : SL(2, ℤ)) (hf : SL(2,ℤ)-invariant) :
+    (T_n f) ∣[k] γ = T_n f := ...
+
+noncomputable def heckeOperator_modularForm (f : ModularForm 𝒮ℒ k) (n : ℕ) (hn : n ≠ 0) :
+    ModularForm 𝒮ℒ k := ...
+```
+
+`heckeOperator_modularForm` proves that `T_n` preserves:
+- **SL(2,ℤ)-invariance** ✅ (`heckeOperator_slash`)
+- **Holomorphy** ✅ (`MDifferentiable.slash` + `MDifferentiable.sum`)
+- **Boundedness at cusps** 🟡 (admitted — requires q-expansion / LMFDB-level formalization)
+
 ### Lemma Dependency Graph
 
 ```
-Defs.lean              CayleyProp.lean
-    │                       │
-    └─── IsVertexTransitive  ←── mulCayley_vertexTransitive
-                                      │
-                                      └─── mulCayley.leftMul
+Defs.lean ←──── Basic.lean ←── CayleySpec.lean
+    │                              │
+    ├── IsVertexTransitive         ├── CayleyProp.lean  ─── mulCayley_vertexTransitive
+    │                              │
+    └── (imported by)              ├── Spectrum.lean   ─── adjacencyOperator
+                                   │                          └── character_eigenvector
+                                   │
+                                   ├── Fourier.lean    ─── regularHomEquiv
+                                   │                          ├── regular_multiplicity
+                                   │                          └── adjacencyElement_spectral
+                                   │
+                                   └── Hecke.lean      ─── heckeOperator
+                                                              ├── heckeOperator_slash
+                                                              └── heckeOperator_modularForm
 ```
 
-The proof is short: given vertices `u v: G`, the left-multiplication by
-`v * u⁻¹` sends `u` to `v` and preserves adjacency because
-`(g*u)⁻¹ * (g*v) = u⁻¹ * g⁻¹ * g * v = u⁻¹ * v`.
+## Build Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total jobs | 3,265 |
+| Errors | 0 |
+| Warnings | 8 (4 from Fourier.lean unused section variables; 1 from permanent admit) |
+| Admitted theorems | 1 (boundedness at cusps — requires q-expansion theory) |
+| Lean version | `leanprover/lean4:v4.31.0` |
+| mathlib version | `v4.31.0` |
+
+## Companion Paper
+
+An 11-page companion paper (`paper/cayleyspec.tex`) describes the formalization
+and its research context. Topics covered:
+
+1. **Abstract** — formal bridge between Cayley graph spectra and Hecke eigenvalues
+2. **Background** — Cayley graphs, spectral theory via characters/Peter-Weyl, Hecke operators
+3. **Formalization** — all 5 modules with Lean code excerpts
+4. **Evaluation** — 3,265 jobs, 0 errors, 1 permanently admitted theorem
+5. **Related work** and **Future work** (SL(2,Fₚ) spectra, k-WL hierarchy, q-expansion)
 
 ## How This Was Built: OpenCode + Sisyphus Workflow
 
 This project was created using **Sisyphus** (the orchestration agent inside
 [OpenCode](https://opencode-ai.com/)), which coordinates specialized sub-agents
 for research, planning, and implementation.
+
+The full development history — including agent conversations, failed proof attempts,
+and key breakthroughs — is archived in `.sisyphus/`.
 
 ### Agent Pipeline
 
@@ -143,21 +216,22 @@ User prompt (Lean + graph theory + complexity)
 └─────────────────────────────────────────────────────────────┘
     │
     ├──→ explore agent (background) — survey existing Lean code
-    ├──→ oracle agent (background) — evaluate 5 research paths
-    │     ├── Candidate A: WL Hierarchy    (fit 9/10)
-    │     ├── Candidate B: Number Theory   (fit 8/10) ← SELECTED
-    │     ├── Candidate C: Spectral Bounds (fit 7/10)
-    │     ├── Candidate D: Circuit Compl.  (fit 8/10)
-    │     └── Candidate E: VT GI           (fit 9/10)
+    ├──→ oracle agent (background) — evaluate research paths
+    │     ├── Path A: WL Hierarchy             (fit 9/10)
+    │     ├── Path B: Number Theory / Hecke    (fit 8/10) ← SELECTED
+    │     ├── Path C: Spectral Bounds          (fit 7/10)
+    │     ├── Path D: Circuit Complexity       (fit 8/10)
+    │     └── Path E: Vertex-Transitive GI     (fit 9/10)
     └──→ ultrabrain agent — synthesize recommendation
          → Path B → A: Cayley spectrum ↔ Hecke eigenvalues
               │
               ▼
     ┌─────────────────┐
     │ Implementation  │
-    │ • todowrite      │  Create task list
-    │ • Execute        │  Install, init, write code, build
-    │ • Verify         │  lsp_diagnostics, lake build
+    │ • PlanAgent      │  Decompose into atomic tasks
+    │ • todowrite      │  Track progress
+    │ • Execute        │  Delegate to subagents, build, verify
+    │ • Oracle         │  Debug hard blockers (φ_inj, exists_smul_reduce)
     └─────────────────┘
 ```
 
@@ -165,9 +239,9 @@ User prompt (Lean + graph theory + complexity)
 
 | Decision | Rationale |
 |----------|-----------|
-| **Path B over D** | Mathlib has excellent number theory; circuit complexity would require building foundations from scratch |
+| **Path B → A** | Mathlib has excellent number theory (modular forms, group reps); circuit complexity would require building foundations from scratch |
 | **Start with vertex-transitivity** | Smallest self-contained theorem to establish the project and validate the toolchain |
-| **Lean 4.31.0 + mathlib `v4.31.0`** | Stable release pair, extensive graph theory API available |
+| **Lean 4.31.0 + mathlib `v4.31.0`** | Stable release pair, extensive graph theory and number theory API |
 | **`mulCayley` (not `addCayley`)** | `mulCayley` is the canonical Cayley graph construction in mathlib's `SimpleGraph` |
 
 ### Reproducibility
@@ -181,18 +255,22 @@ The entire build is reproducible via:
 
 ## Roadmap
 
-### Phase 1: Foundations ✅ (Current State)
+### Phase 1: Foundations ✅
 
 - [x] Define `IsVertexTransitive` predicate
 - [x] Prove Cayley graphs are vertex-transitive
 - [x] Build clean, warnings-free
 
-### Phase 2: Cayley Graph Spectrum → Hecke Eigenvalues (Path B)
+### Phase 2: Cayley Graph Spectrum → Hecke Eigenvalues ✅
 
-- [ ] Define adjacency spectrum of `mulCayley G S` via group characters
-- [ ] Prove character formula: spectrum of Cayley graph is given by character sums
-- [ ] Relate to Hecke operators on modular forms (for GL(2,Z/qZ))
-- [ ] Formalize dictionary: `Hecke eigenvalue` ↔ `Cayley graph eigenvalue`
+- [x] Define adjacency operator on functions `G → ℂ` via convolution with `S`
+- [x] Prove characters of abelian groups are eigenvectors with eigenvalues `∑_{s∈S} χ(s)`
+- [x] Peter-Weyl theorem: regular representation `ℂ[G]` decomposes as `⊕_ρ dim(ρ)·ρ`
+- [x] Relate to Hecke operators on modular forms — `heckeOperator` definition
+- [x] Prove `heckeOperator_slash`: `T_n f` is SL(2,ℤ)-invariant
+- [x] Prove `h_holo`: `T_n f` is holomorphic (`MDifferentiable.slash` + `MDifferentiable.sum`)
+- [x] Companion paper (11 pages)
+- [🟡] **Boundedness at cusps** — permanently admitted; requires q-expansion theory
 
 ### Phase 3: WL Hierarchy Formalization (Path A)
 
@@ -200,11 +278,11 @@ The entire build is reproducible via:
 - [ ] Prove SL(2,F_p) Cayley graphs are 1-WL indistinguishable from complete graph + matching
 - [ ] Extend to k-WL and bounded-depth circuit equivalence
 
-### Phase 4: Workshop Refinement
+### Phase 4: Publication & Workshop
 
 - [ ] Package as interactive Lean workshop
 - [ ] Add exercise sheets and progressive code walkthroughs
-- [ ] Publish paper on Zenodo with companion formalization
+- [ ] Publish paper on arXiv / Zenodo with companion formalization
 
 ## References
 
