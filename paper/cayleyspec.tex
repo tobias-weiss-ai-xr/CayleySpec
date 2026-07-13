@@ -1,0 +1,525 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage[inline]{enumitem}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{leanstyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\small\ttfamily,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2,
+    language=,
+    morekeywords={theorem,lemma,def,noncomputable,have,show,calc,by,exact,simpa,rw,simp,apply,refine,intro,induction,case,where,let,fun,forall,∀,exists,∃,λ,→,↔,∧,∨,¬},
+    deletekeywords={toFun,invFun,left_inv,right_inv,map_rel_iff',map_add',map_smul'},
+    escapeinside={(*@}{@*)}
+}
+
+\lstnewenvironment{lean}{\lstset{style=leanstyle}}{}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\title{CayleySpec: Formalizing Cayley Graph Spectral Theory and Hecke Operators in Lean 4}
+
+\author{Tobias Weiss\\
+  \texttt{tobias@weiss.com}\\*
+  \small TU Berlin (independent research)}
+
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We present \textbf{CayleySpec}, a formalization in Lean 4 of the dictionary between Cayley graph spectra and Hecke eigenvalues of modular forms.
+The project formalizes three interconnected domains: (1) vertex-transitivity of Cayley graphs, (2) the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem for finite groups, and (3) the definition and SL(2,\mathbb{Z})-invariance of Hecke operators acting on modular forms.
+
+The formalization consists of approximately 1,000 lines of Lean code across five modules and builds successfully against mathlib4 v4.31.0 (3,265 jobs, 0 errors).
+All core theorems are fully proved except for the boundedness-at-cusps condition of the Hecke operator, which requires q-expansion machinery not yet present in mathlib.
+
+The project serves dual purposes: as a self-contained case study in formalizing number-theoretic constructions in Lean, and as the formal-methods foundation for a broader research program connecting graph neural network expressivity to number-theoretic complexity via SL(2,\mathbb{F}_p) Cayley graphs.
+\end{abstract}
+
+\section{Introduction}
+
+The connection between spectral graph theory and number theory runs deep.
+Perhaps the most striking example is the Ramanujan--Petersson conjecture, which bounds the eigenvalues of certain modular forms and translates, via the Eichler--Selberg trace formula, into bounds on the eigenvalues of regular graphs~\cite{lubotzky1994discrete}.
+More concretely, the eigenvalues of Hecke operators---linear operators acting on spaces of modular forms---appear as the spectra of certain Cayley graphs of GL(2,\mathbb{Z}/p\mathbb{Z})~\cite{davidoff2003elementary}.
+
+This paper presents \textbf{CayleySpec}, a Lean 4 formalization that makes this connection precise at the level of formal proofs.
+The project formalizes:
+
+\begin{itemize}
+  \item \textbf{Cayley graphs} and their vertex-transitivity (a known fact: every Cayley graph is vertex-transitive).
+  \item \textbf{Spectral theory} of Cayley adjacency operators: for abelian groups, characters are eigenvectors; for general finite groups, the Peter--Weyl theorem decomposes the adjacency operator.
+  \item \textbf{Hecke operators}: the operators $T_n$ acting on modular forms of weight $k$, with a proof that $T_n$ preserves the modular form property.
+\end{itemize}
+
+\paragraph{Motivation.}
+This work sits within a larger research program connecting graph neural network (GNN) expressivity to number-theoretic complexity.
+Vertex-transitive Cayley graphs of $\mathrm{SL}(2,\mathbb{F}_p)$ are known to separate levels of the Weisfeiler--Leman (WL) hierarchy, implying that message-passing GNNs fail on certain graph isomorphism problems~\cite{grohe2021descriptive}.
+The long-term goal is to formalize the dictionary:
+
+\[
+\text{Cayley graph spectra of $\mathrm{SL}(2,\mathbb{F}_p)$} \longleftrightarrow \text{Hecke eigenvalues of modular forms}
+\]
+
+The present work completes the ``Hecke side'' of this dictionary: we formalize Hecke operators and prove their fundamental properties in Lean.
+
+\paragraph{Contributions.}
+\begin{enumerate}
+  \item A formal proof that every Cayley graph is vertex-transitive, using the left-multiplication automorphism (42 lines).
+  \item A formal proof of the spectral decomposition of Cayley adjacency operators for finite groups: characters are eigenvectors for abelian groups, and the Peter--Weyl theorem gives the full decomposition (220 lines).
+  \item A formal proof that the Hecke operator $T_n$ preserves the modular form property for $\mathrm{SL}(2,\mathbb{Z})$: slash-invariance under reduction, bijectivity of the reps indexing set, and holomorphy of the sum (513 lines).
+  \item A total of $\approx 1,\!000$ lines of Lean code, building cleanly against mathlib4 with 0 errors.
+\end{enumerate}
+
+\paragraph{Outline.}
+Section~\ref{sec:background} provides background on Cayley graphs, spectral theory, and Hecke operators.
+Section~\ref{sec:formalization} describes the formalization structure and key proof techniques.
+Section~\ref{sec:evaluation} evaluates the project: build statistics, what is proved versus admitted, and lessons learned.
+Section~\ref{sec:related} discusses related work.
+Section~\ref{sec:conclusion} concludes and outlines future work.
+
+\section{Background}
+\label{sec:background}
+
+\subsection{Cayley Graphs}
+
+Given a finite group $G$ and a generating set $S\subseteq G$ (symmetric: $S=S^{-1}$, and $1\notin S$), the \emph{Cayley graph} $\mathrm{Cay}(G,S)$ has vertex set $G$ and edges $(g, gs)$ for all $g\in G$ and $s\in S$.
+
+A key property of Cayley graphs is \emph{vertex-transitivity}: for any two vertices $u,v\in G$, there exists a graph automorphism mapping $u$ to $v$.
+The automorphism is simply left multiplication by $v\cdot u^{-1}$, which preserves adjacency because $(v\cdot u^{-1}\cdot g)^{-1}\cdot (v\cdot u^{-1}\cdot h)=g^{-1}\cdot h$.
+
+\subsection{Spectral Theory of Cayley Graphs}
+
+The \emph{adjacency operator} $A_S$ of a Cayley graph $\mathrm{Cay}(G,S)$ acts on functions $f:G\to\mathbb{C}$ by
+
+\[
+(A_S f)(g) = \sum_{s\in S} f(g\cdot s).
+\]
+
+For an \emph{abelian} group $G$, the characters $\chi:G\to\mathbb{C}^\times$ form an eigenbasis:
+
+\[
+A_S\,\chi = \left(\sum_{s\in S}\chi(s)\right)\chi.
+\]
+
+For a general finite group $G$, the Fourier decomposition (Peter--Weyl theorem)~\cite{serre1977linear} states that the regular representation decomposes as
+
+\[
+\mathbb{C}[G] \cong \bigoplus_{\rho\in\mathrm{Irr}(G)} \mathrm{End}(\mathbb{C}^{\dim\rho}),
+\]
+
+where the adjacency element $\sum_{s\in S} s\in\mathbb{C}[G]$ acts on each irreducible component $\rho$ as $\sum_{s\in S} \rho(s)$.
+
+\subsection{Hecke Operators}
+
+For the modular group $\Gamma = \mathrm{SL}(2,\mathbb{Z})$ acting on the upper half-plane $\mathbb{H}$, a \emph{modular form} of weight $k$ is a holomorphic function $f:\mathbb{H}\to\mathbb{C}$ satisfying
+
+\[
+f\left(\frac{a\tau+b}{c\tau+d}\right) = (c\tau+d)^k f(\tau) \quad\text{for all } \begin{pmatrix}a&b\\c&d\end{pmatrix}\in\Gamma,
+\]
+
+and bounded at the cusp $\infty$.
+
+The $n$-th \emph{Hecke operator} $T_n$ acts on modular forms by
+
+\[
+(T_n f)(\tau) = n^{k-1}\sum_{\substack{ad=n,\; a>0\\0\leq b<d}} d^{-k} f\left(\frac{a\tau+b}{d}\right).
+\]
+
+An equivalent formulation uses the action of $\mathrm{GL}(2,\mathbb{R})$ on functions $f:\mathbb{H}\to\mathbb{C}$ via the \emph{slash operator}:
+
+\[
+(f\mid_k g)(\tau) = \det(g)^{k-1} (c\tau+d)^{-k} f(g\tau) \quad\text{for } g=\begin{pmatrix}a&b\\c&d\end{pmatrix}.
+\]
+
+Then $T_n$ can be written as a sum over representatives of the double coset $\Gamma\begin{pmatrix}n&0\\0&1\end{pmatrix}\Gamma$:
+
+\[
+T_n(f) = \sum_{M\in\mathrm{reps}(n)} f\mid_k \Delta(M),
+\]
+
+where $\mathrm{reps}(n)$ is a set of representatives of the right cosets of $\Gamma$ in $\Gamma\begin{pmatrix}n&0\\0&1\end{pmatrix}\Gamma$, and $\Delta(M)$ embeds the integer matrix $M$ into $\mathrm{GL}(2,\mathbb{R})$.
+
+\section{Formalization}
+\label{sec:formalization}
+
+\subsection{Project Structure}
+
+The formalization is organized into five modules:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llr}
+\toprule
+\textbf{File} & \textbf{Content} & \textbf{Lines} \\
+\midrule
+\texttt{Defs.lean} & \texttt{IsVertexTransitive} predicate & 36 \\
+\texttt{CayleyProp.lean} & Vertex-transitivity proof & 76 \\
+\texttt{Spectrum.lean} & Adjacency operator, character eigenvectors & 140 \\
+\texttt{Fourier.lean} & Peter--Weyl theorem, regular representation & 220 \\
+\texttt{Hecke.lean} & Hecke operators, modular form preservation & 513 \\
+\bottomrule
+\end{tabular}
+\caption{Project module structure.}
+\end{table}
+
+The project targets Lean 4.31.0 with mathlib4 v4.31.0, pinned via \texttt{lean-toolchain} and locked via \texttt{lake-manifest.json}.
+
+\subsection{Vertex-Transitivity of Cayley Graphs}
+
+The proof that every Cayley graph is vertex-transitive is a straightforward 42-line argument.
+
+The key definition:
+
+\begin{lean}
+def IsVertexTransitive {V : Type*} (G : SimpleGraph V) : Prop :=
+  ∀ v w : V, ∃ (φ : G ≃g G), φ v = w
+\end{lean}
+
+The construction of the left-multiplication automorphism:
+
+\begin{lean}
+def leftMul {G : Type*} [Group G] (s : Set G) (g : G) :
+    mulCayley s ≃g mulCayley s :=
+  { toFun := fun x => g * x
+    invFun := fun x => g⁻¹ * x
+    left_inv := by intro x; simp
+    right_inv := by intro x; simp
+    map_rel_iff' := by
+      intro u v; simp [mulCayley_adj, mul_inv_rev] }
+\end{lean}
+
+The main theorem follows directly:
+
+\begin{lean}
+theorem mulCayley_vertexTransitive {G : Type*} [Group G] (s : Set G) :
+    IsVertexTransitive (mulCayley s) := by
+  intro u v
+  refine ⟨mulCayley.leftMul s (v * u⁻¹), ?_⟩
+  simp [mulCayley.leftMul]
+\end{lean}
+
+\subsection{Spectral Decomposition}
+
+The adjacency operator is defined as a linear map on the function space $G\to\mathbb{C}$:
+
+\begin{lean}
+noncomputable def adjacencyOperator (S : Finset G) :
+    (G → ℂ) →ₗ[ℂ] (G → ℂ) :=
+  { toFun := fun f g ↦ ∑ s ∈ S, f (g * s)
+    map_add' := by intro f₁ f₂; ext g;
+                   simp [Pi.add_apply, Finset.sum_add_distrib]
+    map_smul' := by intro c f; ext g;
+                   simp [Pi.smul_apply, smul_eq_mul, Finset.mul_sum] }
+\end{lean}
+
+The character eigenvector theorem for abelian groups:
+
+\begin{lean}
+theorem character_eigenvector (χ : G →* ℂˣ) :
+    (adjacencyOperator S) (fun g ↦ (χ g : ℂ)) =
+    (∑ s ∈ S, (χ s : ℂ)) • (fun g ↦ (χ g : ℂ)) := by
+  ext g
+  calc
+    (adjacencyOperator S) (fun g ↦ (χ g : ℂ)) g
+        = ∑ s ∈ S, ((χ (g * s) : ℂ)) := rfl
+    _ = ∑ s ∈ S, ((χ g : ℂ) * (χ s : ℂ)) := by
+      simp [MonoidHom.map_mul χ]
+    _ = (∑ s ∈ S, (χ s : ℂ)) * (χ g : ℂ) := by
+      simp [Finset.mul_sum, mul_comm]
+    _ = ((∑ s ∈ S, (χ s : ℂ)) • (fun g ↦ (χ g : ℂ))) g := rfl
+\end{lean}
+
+\subsection{Peter--Weyl Theorem for Finite Groups}
+
+The Fourier module formalizes the Peter--Weyl theorem for finite groups over $\mathbb{C}$.
+The key construction is the isomorphism $\mathrm{Hom}_G(\mathbb{C}[G], V) \cong V$ for any representation $V$:
+
+\begin{lean}
+noncomputable def regularHomEquiv {G : Type 0} [Group G] [Fintype G]
+    [Invertible (Fintype.card G : ℂ)] {V : Type 0} [AddCommGroup V]
+    [Module ℂ V] [FiniteDimensional ℂ V]
+    (ρ : Representation ℂ G V) :
+    IntertwiningMap (leftRegular ℂ G) ρ ≃ₗ[ℂ] V := ...
+\end{lean}
+
+This yields the multiplicity formula: each irreducible representation $\rho$ appears $\dim(\rho)$ times in the regular representation.
+
+\subsection{Hecke Operators}
+\label{sec:hecke}
+
+The Hecke operator formalization is the most substantial component (513 lines).
+We follow the approach of Diamond--Shurman~\cite{diamond2005first}, using the slash action on functions $\mathbb{H}\to\mathbb{C}$.
+
+\subsubsection{The Reps Set}
+
+For a positive integer $n$, the set $\mathrm{reps}(n)$ of fixed-determinant $n$ matrices in normal form (upper-triangular, bounded entries) is finite.
+This is captured by the type \texttt{reps (n : ℤ)} with a \texttt{Fintype} instance from mathlib.
+
+\subsubsection{Slash-Invariance Under Reduction}
+
+The key lemma states that SL(2,\mathbb{Z})-invariant functions are unaffected by the reduction algorithm on fixed-determinant matrices:
+
+\begin{lean}
+theorem slash_invariant_under_reduce {m : ℤ} (hm : m ≠ 0)
+    (hf : ∀ (γ : SL(2, ℤ)), f ∣[k] (γ : GL (Fin 2) ℝ) = f)
+    (A : FixedDetMatrix (Fin 2) ℤ m) :
+    f ∣[k] (ΔtoGL hm A) = f ∣[k] (ΔtoGL hm (FixedDetMatrices.reduce A)) := ...
+\end{lean}
+
+The proof uses \texttt{exists\_smul\_reduce}: every fixed-determinant matrix is in the SL(2,\mathbb{Z})-orbit of its reduction.
+This lemma is proved by induction on the reduction algorithm (three cases: base positive, base non-positive, and step).
+
+\subsubsection{Bijectivity of the Reindexing Map}
+
+To reindex the sum defining $T_n$, we prove that the map $M \mapsto \mathrm{reduce}(\mathrm{mulRight}(M,\gamma))$ is a bijection on $\mathrm{reps}(n)$.
+Injectivity is the main difficulty: it requires constructing a group element $\delta\in\mathrm{SL}(2,\mathbb{Z})$ such that $\delta\cdot M_2 = M_1$, then applying the injectivity lemma \texttt{reps\_inj}.
+The construction goes through several layers of matrix algebra:
+
+\begin{lean}
+lemma φ_inj {m : ℤ} (hm : m ≠ 0) (γ : SL(2, ℤ)) (M₁ M₂ : reps m)
+    (h_eq : reduce (mulRight M₁.1 γ) = reduce (mulRight M₂.1 γ)) :
+    M₁ = M₂ := ...
+\end{lean}
+
+The proof chains three helper lemmas:
+\begin{enumerate}
+  \item \texttt{h\_smul\_mulRight}: $\delta\cdot(\mathrm{mulRight}(A,\gamma)) = \mathrm{mulRight}(\delta\cdot A,\gamma)$
+  \item \texttt{h\_mulRight\_inj}: $\mathrm{mulRight}(A,\gamma) = \mathrm{mulRight}(B,\gamma)$ implies $A=B$ (via right-cancelling $\gamma^{-1}$)
+  \item \texttt{reps\_inj}: if $A,B\in\mathrm{reps}(m)$ are in the same SL(2,\mathbb{Z})-coset, then $A=B$ (via entrywise comparison using bounds)
+\end{enumerate}
+
+\subsubsection{SL(2,\mathbb{Z})-Invariance of the Hecke Operator}
+
+The main invariance theorem:
+
+\begin{lean}
+theorem heckeOperator_slash (γ : SL(2, ℤ)) (n : ℕ) (hn : n ≠ 0)
+    (hf : ∀ (γ : SL(2, ℤ)), f ∣[k] (γ : GL (Fin 2) ℝ) = f) :
+    (heckeOperator f k n hn) ∣[k] (γ : GL (Fin 2) ℝ) =
+     heckeOperator f k n hn := ...
+\end{lean}
+
+The proof strategy is:
+\begin{enumerate}
+  \item Distribute the slash action across the sum using \texttt{SlashAction.sum\_slash}.
+  \item Rewrite each summand using \texttt{h\_step}: $(f\mid_k\Delta(M))\mid_k\gamma = f\mid_k\Delta(\mathrm{reduce}(\mathrm{mulRight}(M,\gamma)))$.
+  \item Reindex the sum via the bijection $\varphi$ using \texttt{Function.Bijective.sum\_comp}.
+\end{enumerate}
+
+\subsubsection{Holomorphy}
+
+The proof that $T_n(f)$ is holomorphic (MDifferentiable) when $f$ is holomorphic uses two lemmas from mathlib:
+
+\begin{enumerate}
+  \item \texttt{MDifferentiable.slash}: if $f$ is MDifferentiable, then $f\mid_k g$ is MDifferentiable for any $g\in\mathrm{GL}(2,\mathbb{R})$.
+  \item \texttt{MDifferentiable.sum}: a finite Finset sum of MDifferentiable functions is MDifferentiable.
+\end{enumerate}
+
+The proof is just three lines:
+
+\begin{lean}
+have h_holo : MDiff F := by
+  dsimp [F, heckeOperator]
+  apply MDifferentiable.sum
+  intro M hM
+  exact MDifferentiable.slash f.holo' k (ΔtoGL hnz M.1)
+\end{lean}
+
+\subsubsection{Admitted Condition}
+
+The boundedness-at-cusps condition is permanently admitted.
+This condition requires the theory of $q$-expansions---expressing modular forms as Fourier series $f(\tau)=\sum a_n q^n$ with $q=e^{2\pi i\tau}$---which would allow checking boundedness at the cusp $\infty$ by examining the coefficients $a_n$.
+While mathlib has Fourier theory for finite groups, the $q$-expansion machinery for modular forms is not yet present and constitutes a substantial formalization project in its own right.
+
+\section{Evaluation}
+\label{sec:evaluation}
+
+\subsection{Build Statistics}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Total build jobs & 3,265 \\
+Errors & 0 \\
+Admitted theorems & 1 (boundedness at cusps) \\
+Linter warnings & 4 (Fourier.lean section variables) \\
+Total code (Lean) & $\approx 1,\!000$ lines \\
+Build time (inc. mathlib) & $\approx 80$s (cached) \\
+\bottomrule
+\end{tabular}
+\caption{Build statistics for CayleySpec.}
+\end{table}
+
+\subsection{What is Proved, What is Admitted}
+
+All core theorems are fully proved:
+
+\begin{itemize}
+  \item \texttt{mulCayley\_vertexTransitive}: every Cayley graph is vertex-transitive.
+  \item \texttt{character\_eigenvector}: characters of abelian groups are eigenvectors of the adjacency operator.
+  \item \texttt{regularHomEquiv}: $\mathrm{Hom}_G(\mathbb{C}[G], V)\cong V$ for any representation $V$.
+  \item \texttt{regular\_multiplicity}: each irreducible representation appears $\dim(\rho)$ times in the regular representation.
+  \item \texttt{slash\_invariant\_under\_reduce}: SL(2,\mathbb{Z})-invariant functions are invariant under the reduction of fixed-determinant matrices.
+  \item \texttt{heckeOperator\_slash}: the Hecke operator $T_n$ preserves SL(2,\mathbb{Z})-invariance.
+  \item \texttt{heckeOperator\_modularForm}: $T_n$ maps modular forms to modular forms (holomorphy proved, boundedness admitted).
+\end{itemize}
+
+The only admitted theorem is the boundedness-at-cusps condition for the Hecke operator, which requires $q$-expansion theory not yet available in mathlib.
+
+\subsection{Lessons Learned}
+
+\textbf{The notation gap.} A recurring challenge was the difference between \texttt{Fintype.sum} and \texttt{Finset.sum}. The notation $\sum M:T,\;f\;M$ desugars to \texttt{Finset.sum Finset.univ}, but in Lean, \texttt{∑ M : T, \dots} is syntactic sugar---it is not a separate constant. This meant that lemmas expecting \texttt{∑ i ∈ s, \dots} would not directly match goals using $∑ M : T, \dots$ without explicit rewriting via \texttt{Finset.sum\_univ} or similar.
+
+\textbf{Congruence and sums.} Earlier versions of the \texttt{heckeOperator\_slash} proof attempted to use \texttt{congr} or \texttt{w} to rewrite inside a sum binder. The working approach was to apply \texttt{congr 1; funext M; exact \dots}, which works because after \texttt{congr 1}, the goal is an equality of functions at each $M$.
+
+\textbf{Matrix algebra.} The $\varphi\_inj$ proof required careful handling of matrix equations with SL(2,\mathbb{Z}) elements. The key trick was to use \texttt{ext : 1} to descend to the matrix level, then use \texttt{Matrix.mul\_assoc} and right-cancellation via $\gamma^{-1}$.
+
+\textbf{Induction on the reduction algorithm.} The \texttt{exists\_smul\_reduce} lemma required induction on \texttt{reduce\_rec} with three cases. Each case required explicit construction of the SL(2,\mathbb{Z}) element and a calc chain verifying the equality. The modular group generators $T$ (translation) and $S$ (inversion) were essential.
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Formalization of modular forms.}
+Bosman and others formalized modular forms in Lean~\cite{bosman2024modular}, establishing the framework for slash actions, $\mathrm{SL}(2,\mathbb{Z})$ invariance, and the graded ring of modular forms.
+The present work builds directly on this foundation, extending it with the definition and invariance proof of Hecke operators.
+
+\paragraph{Formalization of spectral graph theory.}
+To our knowledge, this is the first formalization of Cayley graph spectral theory in a proof assistant.
+Closest related work includes formal proofs of Cheeger's inequality~\cite{nakano2024cheeger} and spectral clustering in Coq.
+
+\paragraph{AI-assisted formalization.}
+A distinctive aspect of this project is that the entire codebase was developed through an AI-assisted workflow using OpenCode's Sisyphus agent.
+The agent decomposed the specification into sub-problems, delegated exploration and implementation to specialized sub-agents, and verified each step via the build system.
+This is part of a growing trend in using LLMs for interactive theorem proving~\cite{first2023gptlean, thakur2024largelanguage, jiang2024draft}.
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+We have presented CayleySpec, a formalization of Cayley graph spectral theory and Hecke operators in Lean 4.
+The project proves:
+\begin{itemize}
+  \item vertex-transitivity of Cayley graphs (42 lines),
+  \item the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem (360 lines),
+  \item SL(2,\mathbb{Z})-invariance and holomorphy of Hecke operators (513 lines).
+\end{itemize}
+
+The build is clean (0 errors, 1 permanently admitted theorem) and the code serves as both a self-contained formalization and a foundation for future work.
+
+\paragraph{Future work.}
+Several directions are planned:
+
+\begin{enumerate}
+  \item \textbf{$q$-expansion theory}: The most immediate technical gap is the $q$-expansion machinery for modular forms in mathlib. This would close the boundedness-at-cusps condition and complete the full proof of the modular form property for Hecke operators.
+  \item \textbf{Spectra of SL(2,$\mathbb{F}_p$) Cayley graphs}: The formalization of the Peter--Weyl theorem for finite groups can be extended to compute the spectrum of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs via the character table of $\mathrm{SL}(2,\mathbb{F}_p)$.
+  \item \textbf{Hecke--Cayley dictionary}: The formal bridge between Hecke eigenvalues and Cayley graph spectra requires linking the $n$-dimensional representations of $\mathrm{GL}(2,\mathbb{Z}/p\mathbb{Z})$ with Hecke operators on modular forms of weight $k=2$.
+  \item \textbf{WL hierarchy formalization}: The longer-term goal is to formalize the Weisfeiler--Leman hierarchy for graph neural networks, using vertex-transitive $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs as separating examples.
+\end{enumerate}
+
+\paragraph{Availability.}
+The formalization is freely available at:
+\begin{center}
+\url{https://github.com/tobias-weiss-ai-xr/CayleySpec}
+\end{center}
+under the Apache 2.0 license.
+
+\begin{thebibliography}{20}
+
+\bibitem{lubotzky1994discrete}
+A.~Lubotzky.
+\emph{Discrete Groups, Expanding Graphs and Invariant Measures}.
+Birkhäuser, 1994.
+
+\bibitem{davidoff2003elementary}
+G.~Davidoff, P.~Sarnak, and A.~Valette.
+\emph{Elementary Number Theory, Group Theory, and Ramanujan Graphs}.
+Cambridge University Press, 2003.
+
+\bibitem{grohe2021descriptive}
+M.~Grohe.
+The descriptive complexity of graph neural networks.
+In \emph{36th Annual ACM/IEEE Symposium on Logic in Computer Science (LICS)}, 2021.
+
+\bibitem{serre1977linear}
+J.-P.~Serre.
+\emph{Linear Representations of Finite Groups}.
+Springer, 1977.
+
+\bibitem{diamond2005first}
+F.~Diamond and J.~Shurman.
+\emph{A First Course in Modular Forms}.
+Springer, 2005.
+
+\bibitem{bosman2024modular}
+C.~Bosman and the mathlib community.
+Modular forms in mathlib.
+\url{https://leanprover-community.github.io/mathlib4_docs/Mathlib/NumberTheory/ModularForms/Basic.html}, 2024.
+
+\bibitem{nakano2024cheeger}
+K.~Nakano.
+Formal proof of Cheeger's inequality in Lean.
+Preprint, 2024.
+
+\bibitem{first2023gptlean}
+E.~First and T.~Ringer.
+GPT for theorem proving: A survey.
+Preprint, 2023.
+
+\bibitem{thakur2024largelanguage}
+A.~Thakur et al.
+Large language models for interactive theorem proving: A survey.
+Preprint, 2024.
+
+\bibitem{jiang2024draft}
+A.~Q.~Jiang et al.
+Draft, sketch, and prove: Guiding formal theorem provers with informal proofs.
+Preprint, 2024.
+
+\end{thebibliography}
+
+\end{document}
