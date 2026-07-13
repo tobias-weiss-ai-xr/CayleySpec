@@ -1,0 +1,9 @@
+/.lake
+/.sisyphus
+test_*.lean
+CayleySpec/test_*.lean
+CayleySpec/TestSL.lean
+*~
+*.swp
+.DS_Store
+Thumbs.db
