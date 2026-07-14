@@ -22,6 +22,7 @@ open FixedDetMatrices
 open ModularForm
 open SpecialLinearGroup
 open ModularGroup
+open OnePoint
 
 /-!
 # Hecke Operators for Level-1 Modular Forms
@@ -498,8 +499,41 @@ noncomputable def heckeOperator_modularForm (f : ModularForm 𝒮ℒ k) (n : ℕ
     apply MDifferentiable.sum
     intro M hM
     exact MDifferentiable.slash f.holo' k (ΔtoGL hnz M.1)
-  -- Boundedness at cusps (TODO: requires q-expansion theory)
-  have h_bdd : ∀ {c : OnePoint ℝ} (hc : IsCusp c 𝒮ℒ), c.IsBoundedAt F k := by sorry
+  -- Boundedness at cusps: each summand f ∣[k] ΔtoGL hnz M.1 is bounded at ∞ because
+  -- M.1 is upper-triangular (from the reps definition: M.1.1 1 0 = 0), so
+  -- (ΔtoGL hnz M.1) 1 0 = 0 and IsBoundedAtImInfty.slash applies. Finite sums
+  -- preserve boundedness (BoundedAtFilter.add via Finset.induction_on). Then
+  -- transport to any cusp via isBoundedAt_iff_exists_SL2Z and heckeOperator_slash.
+  have hF_bdd_im : IsBoundedAtImInfty F := by
+    dsimp [F, heckeOperator]
+    have h_each (M : reps (n : ℤ)) : IsBoundedAtImInfty ((f : ℍ → ℂ) ∣[k] (ΔtoGL hnz M.1)) := by
+      have h_upper : (ΔtoGL hnz M.1) 1 0 = 0 := by
+        have hM10 : M.1.1 1 0 = (0 : ℤ) := M.2.1
+        simp [ΔtoGL, hM10]
+      have hf_bdd_im : IsBoundedAtImInfty (f : ℍ → ℂ) := by
+        have h_bdd_infty : IsBoundedAt ∞ (f : ℍ → ℂ) k :=
+          f.bdd_at_cusps' (isCusp_SL2Z_iff'.mpr ⟨1, by simp⟩)
+        exact (isBoundedAt_infty_iff (k := k)).mp h_bdd_infty
+      refine IsBoundedAtImInfty.slash (k := k) ?_ hf_bdd_im
+      exact h_upper
+    classical
+    have h_sum : IsBoundedAtImInfty (∑ M ∈ (Finset.univ : Finset (reps (n : ℤ))),
+        (f : ℍ → ℂ) ∣[k] (ΔtoGL hnz M.1)) := by
+      refine Finset.induction_on (Finset.univ : Finset (reps (n : ℤ))) ?_ ?_
+      · exact zero_form_isBoundedAtImInfty
+      · intro a s ha ih
+        rw [Finset.sum_insert ha]
+        exact (h_each a).add ih
+    simpa using h_sum
+  have h_bdd : ∀ {c : OnePoint ℝ} (hc : IsCusp c 𝒮ℒ), c.IsBoundedAt F k := by
+    intro c hc
+    rcases isCusp_SL2Z_iff'.mp hc with ⟨γ, hγ⟩
+    have h_slash_eq : F ∣[k] (γ : GL (Fin 2) ℝ) = F :=
+      heckeOperator_slash (f : ℍ → ℂ) k γ n hn h_slash_f
+    apply (isBoundedAt_iff_exists_SL2Z hc).mpr
+    refine ⟨γ, hγ.symm, ?_⟩
+    convert hF_bdd_im
+    exact h_slash_eq
   { toSlashInvariantForm := ⟨F, hF_slash_inv⟩
     holo' := h_holo
     bdd_at_cusps' := h_bdd }
