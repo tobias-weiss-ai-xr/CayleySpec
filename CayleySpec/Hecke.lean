@@ -6,6 +6,7 @@ Authors: Tobias Weiss
 import Mathlib.NumberTheory.ModularForms.Basic
 import Mathlib.NumberTheory.ModularForms.ArithmeticSubgroups
 import Mathlib.NumberTheory.ModularForms.Cusps
+import Mathlib.NumberTheory.ModularForms.QExpansion
 import Mathlib.LinearAlgebra.Matrix.FixedDetMatrices
 import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
 import Mathlib.Geometry.Manifold.MFDeriv.SpecificFunctions
