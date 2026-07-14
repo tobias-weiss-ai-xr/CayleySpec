@@ -76,7 +76,7 @@
 We present \textbf{CayleySpec}, a formalization in Lean 4 of the dictionary between Cayley graph spectra and Hecke eigenvalues of modular forms.
 The project formalizes three interconnected domains: (1) vertex-transitivity of Cayley graphs, (2) the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem for finite groups, and (3) the definition and $\mathrm{SL}(2,\mathbb{Z})$-invariance of Hecke operators acting on modular forms.
 
-The formalization consists of approximately 1,000 lines of Lean code across five modules and builds successfully against mathlib4 v4.31.0 (3,265 jobs, 0 errors).
+The formalization consists of approximately 1,000 lines of Lean code across five modules and builds successfully against mathlib4 v4.31.0 (2,958 jobs, 0 errors).
 All core theorems are fully proved, with no admitted theorems or sorries remaining.
 
 The project serves dual purposes: as a self-contained case study in formalizing number-theoretic constructions in Lean, and as the formal-methods foundation for a broader research program connecting graph neural network expressivity to number-theoretic complexity via $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs.
@@ -394,7 +394,7 @@ The only external dependency is the existence of the \texttt{IsBoundedAtImInfty.
 \toprule
 \textbf{Metric} & \textbf{Value} \\
 \midrule
-Total build jobs & 3,265 \\
+Total build jobs & 2,958 \\
 Errors & 0 \\
 Admitted theorems & 0 \\
 Linter warnings & 4 (Fourier.lean section variables) \\
@@ -464,7 +464,7 @@ The build is clean (0 errors, 0 admitted theorems) and the code serves as both a
 Several directions are planned:
 
 \begin{enumerate}
-  \item \textbf{$q$-expansion theory}: The $q$-expansion machinery for modular forms in mathlib would provide an alternative, Fourier-analytic proof of boundedness and unlock further results such as the $q$-expansion principle and Hecke eigenforms.
+  \item \textbf{$q$-expansion theory}: The $q$-expansion machinery for modular forms (\texttt{Mathlib.NumberTheory.ModularForms.QExpansion}) is now imported and available. While the Hecke operator boundedness proof does not require $q$-expansions (the geometric proof suffices), the imported machinery enables future Fourier-analytic proofs such as the $q$-expansion principle and formulas for Hecke eigenform coefficients.
   \item \textbf{Spectra of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs}: The formalization of the Peter--Weyl theorem for finite groups can be extended to compute the spectrum of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs via the character table of $\mathrm{SL}(2,\mathbb{F}_p)$.
   \item \textbf{Hecke--Cayley dictionary}: The formal bridge between Hecke eigenvalues and Cayley graph spectra requires linking the $n$-dimensional representations of $\mathrm{GL}(2,\mathbb{Z}/p\mathbb{Z})$ with Hecke operators on modular forms of weight $k=2$.
   \item \textbf{WL hierarchy formalization}: The longer-term goal is to formalize the Weisfeiler--Leman hierarchy for graph neural networks, using vertex-transitive $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs as separating examples.
