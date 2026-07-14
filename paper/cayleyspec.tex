@@ -12,6 +12,7 @@
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{microtype}
+\microtypesetup{expansion=false}
 \usepackage[inline]{enumitem}
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -39,10 +40,12 @@
     language=,
     morekeywords={theorem,lemma,def,noncomputable,have,show,calc,by,exact,simpa,rw,simp,apply,refine,intro,induction,case,where,let,fun,forall,∀,exists,∃,λ,→,↔,∧,∨,¬},
     deletekeywords={toFun,invFun,left_inv,right_inv,map_rel_iff',map_add',map_smul'},
-    escapeinside={(*@}{@*)}
+    escapeinside={(*@}{@*})
 }
 
-\lstnewenvironment{lean}{\lstset{style=leanstyle}}{}
+\lstnewenvironment{lean}{\lstset{style=leanstyle,
+  literate={∀}{{$\forall$}}1 {∃}{{$\exists$}}1 {λ}{{$\lambda$}}1 {→}{{$\to$}}1 {↔}{{$\leftrightarrow$}}1 {∧}{{$\land$}}1 {∨}{{$\lor$}}1 {¬}{{$\lnot$}}1 {∞}{{$\infty$}}1 {ℂ}{{$\mathbb{C}$}}1 {ℍ}{{$\mathbb{H}$}}1 {ℤ}{{$\mathbb{Z}$}}1 {ℝ}{{$\mathbb{R}$}}1
+}}{}
 
 \theoremstyle{plain}
 \newtheorem{theorem}{Theorem}[section]
@@ -71,19 +74,19 @@
 
 \begin{abstract}
 We present \textbf{CayleySpec}, a formalization in Lean 4 of the dictionary between Cayley graph spectra and Hecke eigenvalues of modular forms.
-The project formalizes three interconnected domains: (1) vertex-transitivity of Cayley graphs, (2) the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem for finite groups, and (3) the definition and SL(2,\mathbb{Z})-invariance of Hecke operators acting on modular forms.
+The project formalizes three interconnected domains: (1) vertex-transitivity of Cayley graphs, (2) the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem for finite groups, and (3) the definition and $\mathrm{SL}(2,\mathbb{Z})$-invariance of Hecke operators acting on modular forms.
 
 The formalization consists of approximately 1,000 lines of Lean code across five modules and builds successfully against mathlib4 v4.31.0 (3,265 jobs, 0 errors).
-All core theorems are fully proved except for the boundedness-at-cusps condition of the Hecke operator, which requires q-expansion machinery not yet present in mathlib.
+All core theorems are fully proved, with no admitted theorems or sorries remaining.
 
-The project serves dual purposes: as a self-contained case study in formalizing number-theoretic constructions in Lean, and as the formal-methods foundation for a broader research program connecting graph neural network expressivity to number-theoretic complexity via SL(2,\mathbb{F}_p) Cayley graphs.
+The project serves dual purposes: as a self-contained case study in formalizing number-theoretic constructions in Lean, and as the formal-methods foundation for a broader research program connecting graph neural network expressivity to number-theoretic complexity via $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs.
 \end{abstract}
 
 \section{Introduction}
 
 The connection between spectral graph theory and number theory runs deep.
 Perhaps the most striking example is the Ramanujan--Petersson conjecture, which bounds the eigenvalues of certain modular forms and translates, via the Eichler--Selberg trace formula, into bounds on the eigenvalues of regular graphs~\cite{lubotzky1994discrete}.
-More concretely, the eigenvalues of Hecke operators---linear operators acting on spaces of modular forms---appear as the spectra of certain Cayley graphs of GL(2,\mathbb{Z}/p\mathbb{Z})~\cite{davidoff2003elementary}.
+More concretely, the eigenvalues of Hecke operators---linear operators acting on spaces of modular forms---appear as the spectra of certain Cayley graphs of $\mathrm{GL}(2,\mathbb{Z}/p\mathbb{Z})$~\cite{davidoff2003elementary}.
 
 This paper presents \textbf{CayleySpec}, a Lean 4 formalization that makes this connection precise at the level of formal proofs.
 The project formalizes:
@@ -116,7 +119,7 @@ The present work completes the ``Hecke side'' of this dictionary: we formalize H
 \paragraph{Outline.}
 Section~\ref{sec:background} provides background on Cayley graphs, spectral theory, and Hecke operators.
 Section~\ref{sec:formalization} describes the formalization structure and key proof techniques.
-Section~\ref{sec:evaluation} evaluates the project: build statistics, what is proved versus admitted, and lessons learned.
+Section~\ref{sec:evaluation} evaluates the project: build statistics, proof status, and lessons learned.
 Section~\ref{sec:related} discusses related work.
 Section~\ref{sec:conclusion} concludes and outlines future work.
 
@@ -296,11 +299,11 @@ We follow the approach of Diamond--Shurman~\cite{diamond2005first}, using the sl
 \subsubsection{The Reps Set}
 
 For a positive integer $n$, the set $\mathrm{reps}(n)$ of fixed-determinant $n$ matrices in normal form (upper-triangular, bounded entries) is finite.
-This is captured by the type \texttt{reps (n : ℤ)} with a \texttt{Fintype} instance from mathlib.
+This is captured by the type \texttt{reps (n : $\mathbb{Z}$)} with a \texttt{Fintype} instance from mathlib.
 
 \subsubsection{Slash-Invariance Under Reduction}
 
-The key lemma states that SL(2,\mathbb{Z})-invariant functions are unaffected by the reduction algorithm on fixed-determinant matrices:
+The key lemma states that $\mathrm{SL}(2,\mathbb{Z})$-invariant functions are unaffected by the reduction algorithm on fixed-determinant matrices:
 
 \begin{lean}
 theorem slash_invariant_under_reduce {m : ℤ} (hm : m ≠ 0)
@@ -309,7 +312,7 @@ theorem slash_invariant_under_reduce {m : ℤ} (hm : m ≠ 0)
     f ∣[k] (ΔtoGL hm A) = f ∣[k] (ΔtoGL hm (FixedDetMatrices.reduce A)) := ...
 \end{lean}
 
-The proof uses \texttt{exists\_smul\_reduce}: every fixed-determinant matrix is in the SL(2,\mathbb{Z})-orbit of its reduction.
+The proof uses \texttt{exists\_smul\_reduce}: every fixed-determinant matrix is in the $\mathrm{SL}(2,\mathbb{Z})$-orbit of its reduction.
 This lemma is proved by induction on the reduction algorithm (three cases: base positive, base non-positive, and step).
 
 \subsubsection{Bijectivity of the Reindexing Map}
@@ -328,10 +331,10 @@ The proof chains three helper lemmas:
 \begin{enumerate}
   \item \texttt{h\_smul\_mulRight}: $\delta\cdot(\mathrm{mulRight}(A,\gamma)) = \mathrm{mulRight}(\delta\cdot A,\gamma)$
   \item \texttt{h\_mulRight\_inj}: $\mathrm{mulRight}(A,\gamma) = \mathrm{mulRight}(B,\gamma)$ implies $A=B$ (via right-cancelling $\gamma^{-1}$)
-  \item \texttt{reps\_inj}: if $A,B\in\mathrm{reps}(m)$ are in the same SL(2,\mathbb{Z})-coset, then $A=B$ (via entrywise comparison using bounds)
+  \item \texttt{reps\_inj}: if $A,B\in\mathrm{reps}(m)$ are in the same $\mathrm{SL}(2,\mathbb{Z})$-coset, then $A=B$ (via entrywise comparison using bounds)
 \end{enumerate}
 
-\subsubsection{SL(2,\mathbb{Z})-Invariance of the Hecke Operator}
+\subsubsection{$\mathrm{SL}(2,\mathbb{Z})$-Invariance of the Hecke Operator}
 
 The main invariance theorem:
 
@@ -368,11 +371,17 @@ have h_holo : MDiff F := by
   exact MDifferentiable.slash f.holo' k (ΔtoGL hnz M.1)
 \end{lean}
 
-\subsubsection{Admitted Condition}
+\subsubsection{Boundedness at Cusps}
 
-The boundedness-at-cusps condition is permanently admitted.
-This condition requires the theory of $q$-expansions---expressing modular forms as Fourier series $f(\tau)=\sum a_n q^n$ with $q=e^{2\pi i\tau}$---which would allow checking boundedness at the cusp $\infty$ by examining the coefficients $a_n$.
-While mathlib has Fourier theory for finite groups, the $q$-expansion machinery for modular forms is not yet present and constitutes a substantial formalization project in its own right.
+The boundedness-at-cusps condition is proved without $q$-expansion theory, using a geometric argument available in mathlib.
+The proof proceeds in two stages:
+
+\begin{enumerate}
+  \item \textbf{Boundedness at $\infty$}. For each summand $f\mid_k\Delta(M)$, the matrix $\Delta(M)$ is upper-triangular at position $(1,0)$ because $M\in\mathrm{reps}(n)$ has $M_{1,0}=0$. The lemma \texttt{IsBoundedAtImInfty.slash} then implies each summand is bounded at $\infty$. Finite sums preserve boundedness via \texttt{Finset.induction\_on} and the \texttt{BoundedAtFilter.add} instance.
+  \item \textbf{Transport to any cusp}. For any cusp $c\in\mathrm{SL}(2,\mathbb{Z})\backslash\mathbb{P}^1(\mathbb{R})$, the lemma \texttt{isBoundedAt\_iff\_exists\_SL2Z} provides $\gamma\in\mathrm{SL}(2,\mathbb{Z})$ such that $\gamma\cdot\infty = c$. The $\mathrm{SL}(2,\mathbb{Z})$-invariance of $T_n$ (proved above) gives $T_n(f)\mid_k\gamma = T_n(f)$, bounding $T_n(f)$ at $c$ via the $q$-expansion-free criterion.
+\end{enumerate}
+
+The only external dependency is the existence of the \texttt{IsBoundedAtImInfty.slash} lemma in mathlib, which is available as of v4.31.0. No $q$-expansion machinery is required.
 
 \section{Evaluation}
 \label{sec:evaluation}
@@ -387,7 +396,7 @@ While mathlib has Fourier theory for finite groups, the $q$-expansion machinery 
 \midrule
 Total build jobs & 3,265 \\
 Errors & 0 \\
-Admitted theorems & 1 (boundedness at cusps) \\
+Admitted theorems & 0 \\
 Linter warnings & 4 (Fourier.lean section variables) \\
 Total code (Lean) & $\approx 1,\!000$ lines \\
 Build time (inc. mathlib) & $\approx 80$s (cached) \\
@@ -396,31 +405,31 @@ Build time (inc. mathlib) & $\approx 80$s (cached) \\
 \caption{Build statistics for CayleySpec.}
 \end{table}
 
-\subsection{What is Proved, What is Admitted}
+\subsection{Proof Status}
 
-All core theorems are fully proved:
+All core theorems are fully proved, with no admitted theorems:
 
 \begin{itemize}
   \item \texttt{mulCayley\_vertexTransitive}: every Cayley graph is vertex-transitive.
   \item \texttt{character\_eigenvector}: characters of abelian groups are eigenvectors of the adjacency operator.
   \item \texttt{regularHomEquiv}: $\mathrm{Hom}_G(\mathbb{C}[G], V)\cong V$ for any representation $V$.
   \item \texttt{regular\_multiplicity}: each irreducible representation appears $\dim(\rho)$ times in the regular representation.
-  \item \texttt{slash\_invariant\_under\_reduce}: SL(2,\mathbb{Z})-invariant functions are invariant under the reduction of fixed-determinant matrices.
-  \item \texttt{heckeOperator\_slash}: the Hecke operator $T_n$ preserves SL(2,\mathbb{Z})-invariance.
-  \item \texttt{heckeOperator\_modularForm}: $T_n$ maps modular forms to modular forms (holomorphy proved, boundedness admitted).
+  \item \texttt{slash\_invariant\_under\_reduce}: $\mathrm{SL}(2,\mathbb{Z})$-invariant functions are invariant under the reduction of fixed-determinant matrices.
+  \item \texttt{heckeOperator\_slash}: the Hecke operator $T_n$ preserves $\mathrm{SL}(2,\mathbb{Z})$-invariance.
+  \item \texttt{heckeOperator\_modularForm}: $T_n$ maps modular forms to modular forms (holomorphy and boundedness proved).
 \end{itemize}
 
-The only admitted theorem is the boundedness-at-cusps condition for the Hecke operator, which requires $q$-expansion theory not yet available in mathlib.
+All theorems are proved using only mathlib4 v4.31.0, with no $q$-expansion machinery required.
 
 \subsection{Lessons Learned}
 
 \textbf{The notation gap.} A recurring challenge was the difference between \texttt{Fintype.sum} and \texttt{Finset.sum}. The notation $\sum M:T,\;f\;M$ desugars to \texttt{Finset.sum Finset.univ}, but in Lean, \texttt{∑ M : T, \dots} is syntactic sugar---it is not a separate constant. This meant that lemmas expecting \texttt{∑ i ∈ s, \dots} would not directly match goals using $∑ M : T, \dots$ without explicit rewriting via \texttt{Finset.sum\_univ} or similar.
 
-\textbf{Congruence and sums.} Earlier versions of the \texttt{heckeOperator\_slash} proof attempted to use \texttt{congr} or \texttt{w} to rewrite inside a sum binder. The working approach was to apply \texttt{congr 1; funext M; exact \dots}, which works because after \texttt{congr 1}, the goal is an equality of functions at each $M$.
+\textbf{Congruence and sums.} Earlier versions of the \texttt{heckeOperator\_slash} proof attempted to use \texttt{congr} or \texttt{rw} to rewrite inside a sum binder. The working approach was to apply \texttt{congr 1; funext M; exact \dots}, which works because after \texttt{congr 1}, the goal is an equality of functions at each $M$.
 
-\textbf{Matrix algebra.} The $\varphi\_inj$ proof required careful handling of matrix equations with SL(2,\mathbb{Z}) elements. The key trick was to use \texttt{ext : 1} to descend to the matrix level, then use \texttt{Matrix.mul\_assoc} and right-cancellation via $\gamma^{-1}$.
+\textbf{Matrix algebra.} The $\varphi\_inj$ proof required careful handling of matrix equations with $\mathrm{SL}(2,\mathbb{Z})$ elements. The key trick was to use \texttt{ext : 1} to descend to the matrix level, then use \texttt{Matrix.mul\_assoc} and right-cancellation via $\gamma^{-1}$.
 
-\textbf{Induction on the reduction algorithm.} The \texttt{exists\_smul\_reduce} lemma required induction on \texttt{reduce\_rec} with three cases. Each case required explicit construction of the SL(2,\mathbb{Z}) element and a calc chain verifying the equality. The modular group generators $T$ (translation) and $S$ (inversion) were essential.
+\textbf{Induction on the reduction algorithm.} The \texttt{exists\_smul\_reduce} lemma required induction on \texttt{reduce\_rec} with three cases. Each case required explicit construction of the $\mathrm{SL}(2,\mathbb{Z})$ element and a calc chain verifying the equality. The modular group generators $T$ (translation) and $S$ (inversion) were essential.
 
 \section{Related Work}
 \label{sec:related}
@@ -446,17 +455,17 @@ The project proves:
 \begin{itemize}
   \item vertex-transitivity of Cayley graphs (42 lines),
   \item the spectral decomposition of Cayley adjacency operators via group characters and the Peter--Weyl theorem (360 lines),
-  \item SL(2,\mathbb{Z})-invariance and holomorphy of Hecke operators (513 lines).
+  \item $\mathrm{SL}(2,\mathbb{Z})$-invariance and holomorphy of Hecke operators (513 lines).
 \end{itemize}
 
-The build is clean (0 errors, 1 permanently admitted theorem) and the code serves as both a self-contained formalization and a foundation for future work.
+The build is clean (0 errors, 0 admitted theorems) and the code serves as both a self-contained formalization and a foundation for future work.
 
 \paragraph{Future work.}
 Several directions are planned:
 
 \begin{enumerate}
-  \item \textbf{$q$-expansion theory}: The most immediate technical gap is the $q$-expansion machinery for modular forms in mathlib. This would close the boundedness-at-cusps condition and complete the full proof of the modular form property for Hecke operators.
-  \item \textbf{Spectra of SL(2,$\mathbb{F}_p$) Cayley graphs}: The formalization of the Peter--Weyl theorem for finite groups can be extended to compute the spectrum of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs via the character table of $\mathrm{SL}(2,\mathbb{F}_p)$.
+  \item \textbf{$q$-expansion theory}: The $q$-expansion machinery for modular forms in mathlib would provide an alternative, Fourier-analytic proof of boundedness and unlock further results such as the $q$-expansion principle and Hecke eigenforms.
+  \item \textbf{Spectra of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs}: The formalization of the Peter--Weyl theorem for finite groups can be extended to compute the spectrum of $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs via the character table of $\mathrm{SL}(2,\mathbb{F}_p)$.
   \item \textbf{Hecke--Cayley dictionary}: The formal bridge between Hecke eigenvalues and Cayley graph spectra requires linking the $n$-dimensional representations of $\mathrm{GL}(2,\mathbb{Z}/p\mathbb{Z})$ with Hecke operators on modular forms of weight $k=2$.
   \item \textbf{WL hierarchy formalization}: The longer-term goal is to formalize the Weisfeiler--Leman hierarchy for graph neural networks, using vertex-transitive $\mathrm{SL}(2,\mathbb{F}_p)$ Cayley graphs as separating examples.
 \end{enumerate}

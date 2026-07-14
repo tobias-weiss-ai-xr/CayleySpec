@@ -1,4 +1,7 @@
 /.lake
+paper/*.aux
+paper/*.log
+paper/*.out
 /.sisyphus
 test_*.lean
 CayleySpec/test_*.lean
